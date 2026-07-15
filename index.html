@@ -727,11 +727,22 @@ document.querySelectorAll('#historyTable thead th[data-key]').forEach(th => {
 document.getElementById('exportCsvBtn').addEventListener('click', () => {
   const list = loadHistory();
   if (!list.length) return;
-  const header = ['Name', 'ID', 'Average', 'GPA', 'Grade', 'Weakest Subject', 'Recorded'];
-  const rows = list.map(r => [
-    r.name, r.id, r.average.toFixed(1), r.gpa.toFixed(1), r.grade,
-    `${r.lowestSubject} (${r.lowestMark})`, new Date(r.timestamp).toISOString(),
-  ]);
+
+  // Union of every subject name across all records, in first-seen order
+  const subjectNames = [];
+  list.forEach(r => r.subjects.forEach(s => {
+    if (!subjectNames.includes(s.name)) subjectNames.push(s.name);
+  }));
+
+  const header = ['Name', 'ID', ...subjectNames, 'Average', 'GPA', 'Grade', 'Weakest Subject', 'Recorded'];
+  const rows = list.map(r => {
+    const markByName = Object.fromEntries(r.subjects.map(s => [s.name, s.mark]));
+    const markCols = subjectNames.map(n => (n in markByName ? markByName[n] : ''));
+    return [
+      r.name, r.id, ...markCols, r.average.toFixed(1), r.gpa.toFixed(1), r.grade,
+      `${r.lowestSubject} (${r.lowestMark})`, new Date(r.timestamp).toISOString(),
+    ];
+  });
   const csv = [header, ...rows]
     .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
     .join('\n');
